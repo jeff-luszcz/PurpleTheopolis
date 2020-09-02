@@ -1,0 +1,2 @@
+#define SECRET_SSID "REPLACE_ME"
+#define SECRET_PASS "REPLACE_ME"
