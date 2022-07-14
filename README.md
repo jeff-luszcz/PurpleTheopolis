@@ -5,3 +5,4 @@ This is the source code for the Arduino project written up on Instrucables.com a
 
 See https://www.instructables.com/id/PurpleAir-Air-Quality-Status-LED-Display/
 
+License: MIT
