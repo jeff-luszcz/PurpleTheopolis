@@ -41,7 +41,7 @@ THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define LED_PIN    9
 
 // #6 UPDATE How many NeoPixels are attached to the Arduino? (a Jewel 7 uses 7 natch!) I've used single NeoPixles and NeoPixel rings
-#define LED_COUNT 24
+#define LED_COUNT 7
 
 // #7 UPDATE How long to delay between each sensor reading (probably should not be more than once every 10 minutes)
 #define DELAY_TIME_MILLIS 10 * 60 * 1000 // 10 min = 10*60*1000
