@@ -1,3 +1,4 @@
+
 #include <ArduinoJson.h>
 #include <WiFi101.h>
 #include <SPI.h>
@@ -6,7 +7,7 @@
 #include "arduino_secrets.h"
 
 
-/* Copyright 2020 Jeff Luszcz
+/* Copyright 2022 Jeff Luszcz
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the 
 Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, 
@@ -20,31 +21,32 @@ ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-// #0 this sketch uses the libraries referenced above, you will want to import them into your IDE
+// #0 this sketch uses the libraries referenced above, you will want to import them into your IDE (e.g. Arduino IDE Menu -> Sketch -> Include Library -> Manage Library)
 // Wifi101, SPI, ArduinoJson and Adafruit Neopixel
 
-// NOTE: this sketch is hardcoded to use he first sensor named [0] in a purpleair device, they often have 2, and one might work better
-// than the other, check the JSON data using the website via click on a sensor, then selecting "Get this Widget" in the bottom of the square dialog box 
-// and then select JSON
+// NOTE: this sketch is hardcoded to use the data returns for the pm2.5 feed for a user specificed purpleair device
+// Get your station ID by examining the information found in the purpleair map, click on a desired sensor, then selecting "Get this Widget" in the bottom of the square dialog box 
 
 // To use this sketch you will need to configure it
 // #1 UPDATE the SSID and password in a file called arduino_secret.h in this same directory
-// #2 UPDATE the URL fragment for the sensor you want to monitor below (URL of JSON feed found by clicking on a sensor and select Pin this Widget and then JSON)
-//     this should be the format of "/json?key=ABCDEF&show=12345"              CUT AND PASTE that fragment into the below variable
-#define PURPLE_AIR_SENSOR "/json?key=ABCDEF&show=20721"
 
+// #2 UPDATE the below Sensor ID for the sensor you want to monitor (ID found by clicking on a sensor in the PurpleAir map and select Get this Widget and then look at html text seen in box)
+//     this should be the format of "PurpleAirWidget_12345" and then CUT AND PASTE or type that numeric ID (e.g. 12345) fragment into the below variable
+#define PURPLE_AIR_SENSOR "12345"
 
-// #3 UPDATE which pin on the Arduino is connected to the NeoPixels
+// #4 UPDATE your API Key (key this key secret! Don't email or publish it!) Get this key through https://develop.purpleair.com/keys you will likely need to provide gmail account info to PurpleAir
+#define PURPLE_AIR_API_KEY "00000000-0000-0000-0000-000000000000"
+
+// #5 UPDATE which pin on the Arduino is connected to the NeoPixels
 #define LED_PIN    9
 
-// #4 UPDATE How many NeoPixels are attached to the Arduino? (a Jewel 7 uses 7 natch!)
-#define LED_COUNT 7
+// #6 UPDATE How many NeoPixels are attached to the Arduino? (a Jewel 7 uses 7 natch!) I've used single NeoPixles and NeoPixel rings
+#define LED_COUNT 24
 
-// #5 UPDATE How long to delay between each sensor reading (probably should not be more than once every 10 minutes)
-
+// #7 UPDATE How long to delay between each sensor reading (probably should not be more than once every 10 minutes)
 #define DELAY_TIME_MILLIS 10 * 60 * 1000 // 10 min = 10*60*1000
 
-// #6 UPDATE change color of LEDS based on your favorite breakdown of PM25 to potential hazard level
+// #6 [OPTIONAL] UPDATE change color of LEDS based on your favorite breakdown of PM25 to potential hazard level
 //           by updating the values seen in the routine getColorFromPM25 at bottom of this file
 
 
@@ -68,8 +70,11 @@ void setup() {
 
   strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
   strip.show();            // Turn OFF all pixels ASAP
+
+// #7 [OPTIONAL] UPDATE change brightness of LEDS, default is 50, values range from 0 to 255
   strip.setBrightness(50); // Set BRIGHTNESS to about 1/5 (max = 255)
 
+  // Wifi board info for Adafruit M0 Wifi board
   WiFi.setPins(8, 7, 4, 2);
   // Initialize Serial port
   Serial.begin(9600);
@@ -102,19 +107,30 @@ void loop() {
   Serial.println(F("Connecting..."));
 
   // Connect to HTTP server
-  WiFiClient client;
+  WiFiSSLClient client;
   client.setTimeout(10000);
-  if (!client.connect("www.purpleair.com", 80)) {
-    Serial.println(F("Connection failed"));
+
+
+  if (!client.connect("api.purpleair.com", 443)) {
+    Serial.println(F("Connection failed to api"));
     return;
   }
 
-  Serial.println(F("Connected!"));
 
-  String url = String("GET " + String(PURPLE_AIR_SENSOR) + " HTTP/1.0");
-  client.println(url);
-  client.println(F("Host: www.purpleair.com"));
-  client.println(F("Connection: close"));
+  Serial.println(F("Connected to API!"));
+
+
+  String url = String("GET /v1/sensors/") + String(PURPLE_AIR_SENSOR) + String("?fields=pm2.5 HTTP/1.1\r\n");
+
+  String headers = String ("X-API-Key: " + String(PURPLE_AIR_API_KEY) + String("\r\n"));
+
+
+  client.print((url)  + 
+    String("Host: api.purpleair.com\r\n") +
+    String(headers));
+    client.print("Connection: close\r\n\r\n");
+
+   
   if (client.println() == 0) {
     Serial.println(F("Failed to send request"));
     return;
@@ -123,7 +139,7 @@ void loop() {
   // Check HTTP status
   char status[32] = {0};
   client.readBytesUntil('\r', status, sizeof(status));
-  if (strcmp(status, "HTTP/1.0 200 OK") != 0) {
+  if (strcmp(status, "HTTP/1.1 200 OK") != 0) {
     Serial.print(F("Unexpected response: "));
     Serial.println(status);
     return;
@@ -149,9 +165,10 @@ void loop() {
     return;
   }
 
+
   // Extract values
   Serial.println(F("Response:"));
-  float pm = doc["results"][0]["PM2_5Value"].as<float>();
+  float pm = doc["sensor"]["pm2.5"].as<float>();
 
   Serial.println(pm, 6);
 
@@ -202,6 +219,7 @@ void setAllLeds(uint32_t rgb) {
 
 // Update ths routine if you like different colors for different PM 2.5 levels
 // current mapping taken from https://smartairfilters.com/en/blog/difference-pm2-5-aqi-measurements/
+// pm25 to AQI mapping taken from https://aqicn.org/calculator/
 uint32_t getColorFromPM25( float pm25) {
   int pm25int = int(pm25);
 
