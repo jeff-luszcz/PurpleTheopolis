@@ -15,7 +15,7 @@ sensor id, number of NeoPixels, brightness, etc, compile and then update your Fe
 Feather M0 Wifi, NeoPixel LED or NeoPixel Ring
 
 # Required Arduino Libraries:
-Wifi101, SPI, ArduinoJson and Adafruit Neopixel
+Wifi101, SPI, ArduinoJson (Benoit Blanchon version) and Adafruit Neopixel
 
 # Required API Keys
 PurpleAir REST Read API Key
